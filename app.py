@@ -1,3 +1,4 @@
+%%writefile app.py
 import streamlit as st
 import requests
 import firebase_admin
@@ -9,10 +10,15 @@ try:
     with open('ollama_url.txt', 'r') as f:
         OLLAMA_URL = f.read().strip()
 except:
-    OLLAMA_URL = "https://midwest-gis-driver-ear.trycloudflare.com/"
+    OLLAMA_URL = "https://olympics-instrumentation-beast-flowers.trycloudflare.com/"
 
 # 🔥 FIREBASE WEB API KEY
-FIREBASE_API_KEY = "AIzaSyDKRqg2eMFbECfkbLgLgCOVZbWxdST3oCg"
+try:
+    # Trên Streamlit Cloud hoặc local với secrets.toml
+    FIREBASE_API_KEY = st.secrets["firebase_api"]["key"]
+except:
+    # Fallback cho Colab 
+    FIREBASE_API_KEY = "FIREBASE_API_KEY"
 
 # ===== SESSION STATE =====
 if 'user_logged_in' not in st.session_state:
@@ -31,7 +37,19 @@ def init_firebase():
     if not st.session_state.db:
         try:
             if not firebase_admin._apps:
-                cred = credentials.Certificate("mini-travel.json")
+                try:
+                    firebase_config = dict(st.secrets["firebase"])
+                    cred = credentials.Certificate(firebase_config)
+                except:
+                    # Fallback: Đọc từ file (chỉ dùng local/Colab)
+                    if os.path.exists('mini-travel-new.json'):
+                        cred = credentials.Certificate('mini-travel-new.json')
+                    else:
+                        st.error("❌ Không tìm thấy Firebase credentials!")
+                        st.info("📌 Trên local: Thêm file mini-travel-new.json")
+                        st.info("📌 Trên Streamlit Cloud: Cấu hình secrets")
+                        return False
+                
                 firebase_admin.initialize_app(cred)
             st.session_state.db = firestore.client()
             return True
@@ -66,14 +84,13 @@ def send_password_reset_email(email):
         st.error(f"❌ Lỗi: {e}")
         return False
 
-# ===== 🔧 FIX: AUTHENTICATION =====
+# ===== AUTHENTICATION =====
 def authenticate_user(email, password, is_register=False):
     if not init_firebase():
         return False
 
     try:
         if is_register:
-            # ✅ FIX: Dùng REST API để đăng ký THAY VÌ Admin SDK
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
 
             response = requests.post(url, json={
