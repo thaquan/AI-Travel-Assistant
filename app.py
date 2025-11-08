@@ -36,19 +36,15 @@ def init_firebase():
     if not st.session_state.db:
         try:
             if not firebase_admin._apps:
+                # ✅ ĐỌC TỪ STREAMLIT SECRETS (không cần file JSON)
                 try:
                     firebase_config = dict(st.secrets["firebase"])
                     cred = credentials.Certificate(firebase_config)
-                except:
-                    # Fallback: Đọc từ file (chỉ dùng local/Colab)
-                    if os.path.exists('mini-travel-application.json'):
-                        cred = credentials.Certificate('mini-travel-application.json')
-                    else:
-                        st.error("❌ Không tìm thấy Firebase credentials!")
-                        st.info("📌 Trên local: Thêm file mini-travel-application.json")
-                        st.info("📌 Trên Streamlit Cloud: Cấu hình secrets")
-                        return False
-
+                except Exception as e:
+                    st.error("❌ Chưa cấu hình Firebase Secrets!")
+                    st.info("👉 Vào Streamlit Cloud → Manage app → Settings → Secrets")
+                    return False
+                
                 firebase_admin.initialize_app(cred)
             st.session_state.db = firestore.client()
             return True
