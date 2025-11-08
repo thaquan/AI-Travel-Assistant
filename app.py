@@ -10,14 +10,14 @@ try:
     with open('ollama_url.txt', 'r') as f:
         OLLAMA_URL = f.read().strip()
 except:
-    OLLAMA_URL = "https://olympics-instrumentation-beast-flowers.trycloudflare.com/"
+    OLLAMA_URL = "https://copyright-landscapes-pop-adoption.trycloudflare.com/"
 
 # 🔥 FIREBASE WEB API KEY
 try:
     # Trên Streamlit Cloud hoặc local với secrets.toml
     FIREBASE_API_KEY = st.secrets["firebase_api"]["key"]
 except:
-    # Fallback cho Colab 
+    # Fallback cho Colab (Nếu chạy bằng colab lấy FIREBASE_API_KEY trong secrets.toml)
     FIREBASE_API_KEY = "FIREBASE_API_KEY"
 
 # ===== SESSION STATE =====
@@ -42,14 +42,14 @@ def init_firebase():
                     cred = credentials.Certificate(firebase_config)
                 except:
                     # Fallback: Đọc từ file (chỉ dùng local/Colab)
-                    if os.path.exists('mini-travel-new.json'):
-                        cred = credentials.Certificate('mini-travel-new.json')
+                    if os.path.exists('mini-travel-application.json'):
+                        cred = credentials.Certificate('mini-travel-application.json')
                     else:
                         st.error("❌ Không tìm thấy Firebase credentials!")
-                        st.info("📌 Trên local: Thêm file mini-travel-new.json")
+                        st.info("📌 Trên local: Thêm file mini-travel-application.json")
                         st.info("📌 Trên Streamlit Cloud: Cấu hình secrets")
                         return False
-                
+
                 firebase_admin.initialize_app(cred)
             st.session_state.db = firestore.client()
             return True
@@ -231,10 +231,10 @@ with st.sidebar:
         st.error("❌ Ollama chưa kết nối")
         st.warning("Chạy CELL 3 để tạo tunnel")
 
-    if os.path.exists('mini-travel.json'):
+    if os.path.exists('mini-travel-application.json'):
         st.success("✅ Firebase OK")
     else:
-        st.error("❌ Thiếu mini-travel.json")
+        st.error("❌ Thiếu mini-travel-application.json")
 
 st.title("✈️ AI Travel Recommendation Assistant")
 
