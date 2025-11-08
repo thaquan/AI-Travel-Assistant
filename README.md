@@ -2,6 +2,7 @@ AI TRAVEL ASSISTANT
 
 Họ và Tên: Trần Hà Anh Quân
 MSSV: 24127228
+
 GitHub: https://github.com/thaquan/AI-Travel-Assistant
 
 I. Tổng quan hệ thống
