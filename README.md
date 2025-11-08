@@ -115,15 +115,18 @@ pip install streamlit firebase-admin requests ollama
 ```
 
 Bước 3: Start Ollama:
-
+```bash
 ollama serve
 
 ollama pull mistral
+```
 
 Bước 4: Tạo file ollama_url.txt: (File ở trên là khi chạy trên google colab nên khi chayj local cần tạo file ollama_url.txt mới)
-
+```bash
 echo "http://localhost:11434" > ollama_url.txt
+```
 
 Bước 5: Chạy app 
-
+```bash
 streamlit run app.py
+```
