@@ -103,17 +103,23 @@ Cell 6: Khởi động Streamlit web -> chỉ cần nhấn vào link sẽ điề
 3. Hướng dẫn chạy trên local 
 Bước 1: Clone repo:
 git clone https://github.com/thaquan/AI-Travel-Assistant.git
+
 cd AI-Travel-Assistant
 
 Bước 2: Cài đặt thư viện cần thiết:
+
 pip install streamlit firebase-admin requests ollama
 
 Bước 3: Start Ollama:
+
 ollama serve
+
 ollama pull mistral
 
 Bước 4: Tạo file ollama_url.txt: (File ở trên là khi chạy trên google colab nên khi chayj local cần tạo file ollama_url.txt mới)
+
 echo "http://localhost:11434" > ollama_url.txt
 
 Bước 5: Chạy app 
+
 streamlit run app.py
