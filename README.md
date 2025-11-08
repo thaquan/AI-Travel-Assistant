@@ -130,3 +130,9 @@ Bước 5: Chạy app
 ```bash
 streamlit run app.py
 ```
+
+4. Chạy bằng google colab
+5. 
+https://colab.research.google.com/drive/18GPOJohQyPugnYHCokdl0lZx3xS-btEV?usp=sharing
+
+Đây là đường link google colab nhấn vào sẽ ra file mini_travel_application.ipynb
