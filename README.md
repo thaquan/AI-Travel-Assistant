@@ -99,6 +99,7 @@ Cell 4: File app.py -> chứa các chức năng chính của web mini-travel-app
 Cell 5: Upload Firebase Service Account Key 
 
 Cell 6: Khởi động Streamlit web -> chỉ cần nhấn vào link sẽ điều hướng qua 1 tab khác -> đây chính là chương trình mà chúng ta mong đợi
+
 3. Hướng dẫn chạy trên local 
 Bước 1: Clone repo:
 git clone https://github.com/thaquan/AI-Travel-Assistant.git
