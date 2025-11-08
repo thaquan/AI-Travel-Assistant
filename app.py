@@ -13,10 +13,9 @@ except:
 
 # 🔥 FIREBASE WEB API KEY
 try:
-    # Trên Streamlit Cloud hoặc local với secrets.toml
     FIREBASE_API_KEY = st.secrets["firebase_api"]["key"]
 except:
-    # Fallback cho Colab (Nếu chạy bằng colab lấy FIREBASE_API_KEY trong secrets.toml)
+    # ✅ Fallback với key thật (Key này có thể chạy bên google colab)
     FIREBASE_API_KEY = "FIREBASE_API_KEY"
 
 # ===== SESSION STATE =====
@@ -31,19 +30,22 @@ if 'user_email' not in st.session_state:
 if 'show_reset_password' not in st.session_state:
     st.session_state.show_reset_password = False
 
-# ===== FIREBASE INIT =====
+# ===== FIREBASE INIT  =====
 def init_firebase():
     if not st.session_state.db:
         try:
             if not firebase_admin._apps:
-                # ✅ ĐỌC TỪ STREAMLIT SECRETS (không cần file JSON)
+                # ĐỌC TỪ STREAMLIT SECRETS
                 try:
                     firebase_config = dict(st.secrets["firebase"])
                     cred = credentials.Certificate(firebase_config)
-                except Exception as e:
+                except KeyError:
                     st.error("❌ Chưa cấu hình Firebase Secrets!")
-                    st.info("👉 Vào Streamlit Cloud → Manage app → Settings → Secrets")
-                    return False
+                    st.info("👉 Vào: Manage app → Settings → Secrets")
+                    st.stop()
+                except Exception as e:
+                    st.error(f"❌ Lỗi đọc secrets: {e}")
+                    st.stop()
                 
                 firebase_admin.initialize_app(cred)
             st.session_state.db = firestore.client()
@@ -55,21 +57,19 @@ def init_firebase():
 
 # ===== PASSWORD RESET =====
 def send_password_reset_email(email):
-    """Gửi email reset password"""
     try:
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_API_KEY}"
-
         response = requests.post(url, json={
             "requestType": "PASSWORD_RESET",
             "email": email
         }, timeout=10)
-
+        
         if response.status_code == 200:
-            st.success(f"✅ Email khôi phục đã gửi đến {email}. Kiểm tra hộp thư!")
-            st.info("💡 Kiểm tra cả thư mục Spam nếu không thấy email")
+            st.success(f"✅ Email khôi phục đã gửi đến {email}")
+            st.info("💡 Kiểm tra cả thư mục Spam")
             return True
         else:
-            error = response.json().get('error', {}).get('message', 'Unknown error')
+            error = response.json().get('error', {}).get('message', '')
             if 'EMAIL_NOT_FOUND' in error:
                 st.error("❌ Email này chưa được đăng ký!")
             else:
@@ -87,105 +87,68 @@ def authenticate_user(email, password, is_register=False):
     try:
         if is_register:
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
-
-            response = requests.post(url, json={
-                "email": email,
-                "password": password,
-                "returnSecureToken": True
-            }, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-                # Lưu session state
-                st.session_state.user_id = data['localId']
-                st.session_state.user_email = email
-                st.session_state.user_logged_in = True
-
-                st.success("✅ Đăng ký thành công! Đang đăng nhập...")
-                return True
-            else:
-                error = response.json().get('error', {}).get('message', '')
-                if 'EMAIL_EXISTS' in error:
-                    st.error("❌ Email đã được đăng ký!")
-                elif 'WEAK_PASSWORD' in error:
-                    st.error("❌ Password quá yếu! Cần ít nhất 6 ký tự")
-                else:
-                    st.error(f"❌ Lỗi đăng ký: {error}")
-                return False
-
         else:
-            # Đăng nhập
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
-
-            response = requests.post(url, json={
-                "email": email,
-                "password": password,
-                "returnSecureToken": True
-            }, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-                st.session_state.user_id = data['localId']
-                st.session_state.user_email = email
-                st.session_state.user_logged_in = True
-                st.success(f"✅ Chào mừng {email}!")
-                return True
+        
+        response = requests.post(url, json={
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state.user_id = data['localId']
+            st.session_state.user_email = email
+            st.session_state.user_logged_in = True
+            
+            if is_register:
+                st.success("✅ Đăng ký thành công!")
             else:
-                error_data = response.json()
-                error_msg = error_data.get('error', {}).get('message', 'Unknown error')
-
-                # Thông báo lỗi rõ ràng
-                if 'INVALID_PASSWORD' in error_msg or 'INVALID_LOGIN_CREDENTIALS' in error_msg:
-                    st.error("❌ Sai email hoặc mật khẩu!")
-                elif 'EMAIL_NOT_FOUND' in error_msg:
-                    st.error("❌ Email chưa được đăng ký!")
-                elif 'INVALID_EMAIL' in error_msg:
-                    st.error("❌ Email không hợp lệ!")
-                elif 'USER_DISABLED' in error_msg:
-                    st.error("❌ Tài khoản đã bị khóa!")
-                elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_msg:
-                    st.error("❌ Quá nhiều lần thử! Vui lòng đợi vài phút")
-                else:
-                    st.error(f"❌ Lỗi đăng nhập: {error_msg}")
-                return False
-
-    except requests.exceptions.Timeout:
-        st.error("❌ Timeout! Kiểm tra kết nối mạng")
-        return False
+                st.success(f"✅ Chào {email}!")
+            return True
+        else:
+            error_msg = response.json().get('error', {}).get('message', '')
+            
+            if 'EMAIL_EXISTS' in error_msg:
+                st.error("❌ Email đã được đăng ký!")
+            elif 'INVALID_PASSWORD' in error_msg or 'INVALID_LOGIN_CREDENTIALS' in error_msg:
+                st.error("❌ Sai email hoặc mật khẩu!")
+            elif 'EMAIL_NOT_FOUND' in error_msg:
+                st.error("❌ Email chưa được đăng ký!")
+            elif 'WEAK_PASSWORD' in error_msg:
+                st.error("❌ Password cần ít nhất 6 ký tự!")
+            else:
+                st.error(f"❌ Lỗi: {error_msg}")
+            return False
+            
     except Exception as e:
         st.error(f"❌ Lỗi: {e}")
         return False
 
 # ===== LLM GENERATION =====
 def generate_itinerary(origin, dest, dates, interests, pace, ollama_url):
-    interest_str = ", ".join(interests) if interests else "general sightseeing"
+    interest_str = ", ".join(interests) if interests else "du lịch tổng hợp"
 
-    prompt = f"""Tạo lịch trình du lịch chi tiết từ {origin} đến {dest} trong CHÍNH XÁC {dates}.
+    prompt = f"""Lịch trình du lịch {dest} trong {dates}.
 
-**LƯU Ý QUAN TRỌNG: Lịch trình PHẢI phù hợp với thời gian \"{dates}\" mà người dùng yêu cầu.**
+Xuất phát: {origin}
+Sở thích: {interest_str}
+Tốc độ: {pace}
 
-SỞ THÍCH: {interest_str}
-TỐC ĐỘ: {pace}
-
-YÊU CẦU:
-1. Chia theo từng ngày (Sáng/Chiều/Tối) dựa trên thời gian \"{dates}\"
-2. Gợi ý địa điểm cụ thể tại {dest}
-3. Thêm mẹo thực tế (giá vé, thời gian, lưu ý)
-4. Viết bằng tiếng Việt
-5. **NẾU người dùng nhập thời gian tùy chỉnh (ví dụ: "5 ngày 4 đêm", "1 tuần"), hãy tạo lịch trình cho ĐÚNG thời gian đó**
-
-VÍ DỤ FORMAT:
+Format:
 **Ngày 1:**
-- **Sáng (7:00-11:00):** Tham quan [Địa điểm]. Mẹo: ...
-- **Chiều (14:00-18:00):** ...
-- **Tối (19:00-22:00):** ...
+- Sáng (7h-11h): [Địa điểm] - [Hoạt động]
+- Chiều (14h-18h): [Địa điểm] - [Hoạt động]
+- Tối (19h-22h): [Địa điểm] - [Hoạt động]
 
-Hãy tạo lịch trình cho \"{dates}\" ngay:"""
+Chỉ viết lịch trình, bắt đầu từ "**Ngày 1:**"
+"""
 
     try:
         test_conn = requests.get(f"{ollama_url}/api/tags", timeout=5)
         if test_conn.status_code != 200:
-            return "❌ Ollama Tunnel đã ngắt kết nối. Vui lòng:\n1. Chạy lại CELL 3\n2. Reload lại trang Streamlit"
+            return "❌ Ollama Tunnel ngắt. Chạy lại Cell 3"
 
         response = requests.post(
             f"{ollama_url}/api/generate",
@@ -195,22 +158,23 @@ Hãy tạo lịch trình cho \"{dates}\" ngay:"""
                 "stream": False,
                 "options": {
                     "temperature": 0.7,
-                    "num_predict": 1500
+                    "num_predict": 700
                 }
             },
             headers={"Content-Type": "application/json"},
-            timeout=180
+            timeout=70
         )
 
         if response.status_code == 200:
-            return response.json().get('response', 'Không có phản hồi')
+            result = response.json().get('response', '')
+            if "**Ngày 1" in result:
+                result = result[result.index("**Ngày 1"):]
+            return result if result else "❌ Không có phản hồi"
         else:
-            return f"❌ Lỗi {response.status_code}: {response.text[:200]}"
+            return f"❌ Lỗi {response.status_code}"
 
     except requests.exceptions.Timeout:
-        return "❌ Timeout! AI xử lý quá lâu. Thử lại với yêu cầu ngắn hơn."
-    except requests.exceptions.ConnectionError:
-        return "❌ Mất kết nối tới Ollama. Chạy lại CELL 3 để tạo tunnel mới."
+        return "❌ Timeout 70s. Thử lịch trình ngắn hơn"
     except Exception as e:
         return f"❌ Lỗi: {str(e)}"
 
@@ -220,57 +184,48 @@ st.set_page_config(page_title="AI Travel Assistant", page_icon="✈️", layout=
 with st.sidebar:
     st.subheader("🔧 System Status")
     if "trycloudflare.com" in OLLAMA_URL:
-        st.success(f"✅ Ollama Connected")
+        st.success("✅ Ollama Connected")
         st.caption(f"URL: {OLLAMA_URL[:40]}...")
     else:
         st.error("❌ Ollama chưa kết nối")
-        st.warning("Chạy CELL 3 để tạo tunnel")
-
-    if os.path.exists('mini-travel-application.json'):
-        st.success("✅ Firebase OK")
-    else:
-        st.error("❌ Thiếu mini-travel-application.json")
 
 st.title("✈️ AI Travel Recommendation Assistant")
 
 # ===== LOGIN =====
 if not st.session_state.user_logged_in:
-
-    # QUÊN MẬT KHẨU
+    
     if st.session_state.show_reset_password:
         st.subheader("🔑 Quên Mật Khẩu")
-
+        
         with st.form("reset_form"):
-            reset_email = st.text_input("📧 Nhập email của bạn", placeholder="example@gmail.com")
+            reset_email = st.text_input("📧 Email")
             col1, col2 = st.columns(2)
-
+            
             with col1:
-                send_reset = st.form_submit_button("📧 Gửi Email", use_container_width=True, type="primary")
+                send_reset = st.form_submit_button("📧 Gửi Email", use_container_width=True)
             with col2:
                 back_to_login = st.form_submit_button("⬅️ Quay lại", use_container_width=True)
-
+        
         if send_reset and reset_email:
             send_password_reset_email(reset_email)
-
+        
         if back_to_login:
             st.session_state.show_reset_password = False
             st.rerun()
-
-    # ĐĂNG NHẬP/ĐĂNG KÝ
+    
     else:
         st.subheader("🔐 Đăng nhập/Đăng ký")
 
         with st.form("login_form"):
-            email = st.text_input("📧 Email", placeholder="example@gmail.com")
-            password = st.text_input("🔑 Password", type="password", placeholder="Tối thiểu 6 ký tự")
+            email = st.text_input("📧 Email")
+            password = st.text_input("🔑 Password", type="password")
 
             col1, col2 = st.columns(2)
             with col1:
                 login = st.form_submit_button("🚪 Đăng nhập", use_container_width=True)
             with col2:
-                register = st.form_submit_button("📝 Đăng ký", use_container_width=True, type="primary")
+                register = st.form_submit_button("📝 Đăng ký", use_container_width=True)
 
-        # NÚT QUÊN MẬT KHẨU
         if st.button("🔓 Quên mật khẩu?", use_container_width=True):
             st.session_state.show_reset_password = True
             st.rerun()
@@ -278,7 +233,7 @@ if not st.session_state.user_logged_in:
         if login and email and password:
             if authenticate_user(email, password):
                 st.rerun()
-
+                
         if register and email and password:
             if len(password) < 6:
                 st.error("❌ Password phải có ít nhất 6 ký tự!")
@@ -314,7 +269,7 @@ else:
                 dest = st.text_input("🎯 Điểm đến", "Đà Nẵng")
 
             with col2:
-                dates = st.text_input("📅 Thời gian (VD: 3 ngày 2 đêm, 1 tuần, 5 ngày)", "3 ngày 2 đêm")
+                dates = st.text_input("📅 Thời gian", "2 ngày 1 đêm")
                 pace = st.selectbox("⚡ Tốc độ",
                     ["Nhàn nhã (Relaxed)", "Bình thường (Normal)", "Gấp gáp (Tight)"])
 
@@ -323,20 +278,20 @@ else:
                 ['Ẩm thực (Food)', 'Bảo tàng/Văn hóa (Museums)',
                  'Thiên nhiên (Nature)', 'Giải trí đêm (Nightlife)',
                  'Mua sắm (Shopping)', 'Thể thao (Adventure)'],
-                default=['Ẩm thực (Food)', 'Thiên nhiên (Nature)']
+                default=['Ẩm thực (Food)']
             )
 
             submitted = st.form_submit_button("🚀 Tạo Lịch trình",
                 use_container_width=True, type="primary")
 
         if submitted and dest:
-            with st.spinner(f'⏳ AI đang tạo lịch trình cho {dates}... (30-90s)'):
+            with st.spinner(f'⏳ AI đang tạo lịch trình...'):
                 itinerary = generate_itinerary(origin, dest, dates, interests, pace, OLLAMA_URL)
 
                 if itinerary.startswith("❌"):
                     st.error(itinerary)
                 else:
-                    st.success(f"✅ Lịch trình cho **{dest}** trong **{dates}**")
+                    st.success(f"✅ Lịch trình {dest} ({dates})")
                     st.divider()
                     st.markdown(itinerary)
 
@@ -377,11 +332,11 @@ else:
                         data = doc.to_dict()
                         inp = data.get('input', {})
 
-                        with st.expander(f"#{i} - {data.get('destination', 'N/A')} ({inp.get('dates', 'N/A')})"):
-                            st.markdown(f"**🏙️ Từ:** {inp.get('origin', 'N/A')}")
-                            st.markdown(f"**⚡ Tốc độ:** {inp.get('pace', 'N/A')}")
+                        with st.expander(f"#{i} - {data.get('destination')} ({inp.get('dates')})"):
+                            st.markdown(f"**🏙️ Từ:** {inp.get('origin')}")
+                            st.markdown(f"**⚡ Tốc độ:** {inp.get('pace')}")
                             st.markdown(f"**🎨 Sở thích:** {', '.join(inp.get('interests', []))}")
                             st.divider()
-                            st.markdown(data.get('itinerary', 'N/A'))
+                            st.markdown(data.get('itinerary'))
             except Exception as e:
                 st.error(f"❌ Lỗi: {e}")
