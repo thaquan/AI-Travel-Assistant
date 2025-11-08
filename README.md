@@ -88,22 +88,31 @@ E. Xem lại lịch trình
 
 III. Giải thích từng cell trong file "mini-travel-application.ipynb"
 1. Giải thích từng cell trong google colab
-Cell 1: Cài đặt thư viện Ollama và thư viện 
+Cell 1: Cài đặt thư viện Ollama và thư viện
+
 Cell 2: Khởi động Ollama Server 
+
 Cell 3: Tải Model và tạo Cloudflare -> sau khi chạy xong cell sẽ ra 1 link dùng link này để dán vào file app.py trong phần ollama_url 
+
 Cell 4: File app.py -> chứa các chức năng chính của web mini-travel-application 
+
 Cell 5: Upload Firebase Service Account Key 
+
 Cell 6: Khởi động Streamlit web -> chỉ cần nhấn vào link sẽ điều hướng qua 1 tab khác -> đây chính là chương trình mà chúng ta mong đợi
-2. Hướng dẫn chạy trên local 
+3. Hướng dẫn chạy trên local 
 Bước 1: Clone repo:
 git clone https://github.com/thaquan/AI-Travel-Assistant.git
 cd AI-Travel-Assistant
+
 Bước 2: Cài đặt thư viện cần thiết:
 pip install streamlit firebase-admin requests ollama
+
 Bước 3: Start Ollama:
 ollama serve
 ollama pull mistral
+
 Bước 4: Tạo file ollama_url.txt: (File ở trên là khi chạy trên google colab nên khi chayj local cần tạo file ollama_url.txt mới)
 echo "http://localhost:11434" > ollama_url.txt
+
 Bước 5: Chạy app 
 streamlit run app.py
